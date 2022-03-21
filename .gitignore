@@ -1,0 +1,12 @@
+# editor and IDE paraphernalia
+.idea
+vendor
+*.swp
+*.swo
+*~
+bin
+.DS_Store
+*.out
+*.log
+
+coverage.txt
