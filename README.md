@@ -4,3 +4,5 @@
 [![GoDoc](https://godoc.org/github.com/vesoft-inc/go-pkg?status.svg)](https://godoc.org/github.com/vesoft-inc/go-pkg)
 
 # Go Common Packages
+
+- [errorx](errorx) - Error extension with code and message.
