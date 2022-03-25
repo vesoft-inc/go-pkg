@@ -6,3 +6,4 @@
 # Go Common Packages
 
 - [errorx](errorx) - Error extension with code and message.
+- [httpclient](httpclient) - HTTP client containing raw `Client`, `BytesClient` and `ObjectClient`.
