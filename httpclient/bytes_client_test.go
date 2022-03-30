@@ -55,7 +55,6 @@ func TestBytesClient(t *testing.T) {
 					w.WriteHeader(statusCode)
 					w.Write(respBody)
 				}))
-
 				defer testServer.Close()
 
 				checkHookFunc := func(resp *resty.Response, err error) {
@@ -110,6 +109,7 @@ func TestBytesClient(t *testing.T) {
 					resp, err := f(c)
 					checkFunc(resp, err)
 				}
+
 				var executeBody interface{}
 				if method != resty.MethodGet {
 					executeBody = reqBody

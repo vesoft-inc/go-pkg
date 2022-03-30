@@ -38,7 +38,8 @@ lint: $(GOBIN)/golangci-lint
 	$(GOBIN)/golangci-lint run
 
 test:
-	go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+	# TODO： add -race arguments
+	go test -coverprofile=coverage.txt -covermode=atomic ./...
 
 tools: $(GOBIN)/goimports \
 	$(GOBIN)/impi \

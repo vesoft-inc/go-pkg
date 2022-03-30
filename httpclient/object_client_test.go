@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestObjectClient(t *testing.T) {
+func TesObjectClient(t *testing.T) {
 	reqBody := []byte("testReqBody")
 	reqFuncMap := map[string]func(ObjectClient, interface{}) error{
 		resty.MethodGet: func(c ObjectClient, responseObj interface{}) error {
@@ -55,7 +55,6 @@ func TestObjectClient(t *testing.T) {
 						w.WriteHeader(statusCode)
 						w.Write(respBody)
 					}))
-
 					defer testServer.Close()
 
 					checkHookFunc := func(resp *resty.Response, err error) {
@@ -117,6 +116,7 @@ func TestObjectClient(t *testing.T) {
 						err := f(c, &responseObj)
 						checkFunc(true, responseObj, err)
 					}
+
 					var executeBody interface{}
 					if method != resty.MethodGet {
 						executeBody = reqBody
