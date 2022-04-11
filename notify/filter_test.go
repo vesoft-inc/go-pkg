@@ -107,7 +107,6 @@ func TestDuplicateFilterNotify(t *testing.T) {
 		NewWithDuplicateFilter(DuplicateFilterParams{
 			DupInterval: dupInterval,
 			MaxRecords:  1,
-			Name:        "name1",
 		}, n11, n12),
 		n13,
 	)
@@ -115,7 +114,6 @@ func TestDuplicateFilterNotify(t *testing.T) {
 		NewWithDuplicateFilter(DuplicateFilterParams{
 			DupInterval: dupInterval,
 			MaxRecords:  10,
-			Name:        "name2",
 		}, n21),
 		n22,
 		n23,
