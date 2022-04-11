@@ -55,7 +55,6 @@ func TestBytesClient(t *testing.T) {
 					w.WriteHeader(statusCode)
 					w.Write(respBody)
 				}))
-
 				defer testServer.Close()
 
 				checkHookFunc := func(resp *resty.Response, err error) {
