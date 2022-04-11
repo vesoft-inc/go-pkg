@@ -109,7 +109,6 @@ func TestBytesClient(t *testing.T) {
 					resp, err := f(c)
 					checkFunc(resp, err)
 				}
-
 				var executeBody interface{}
 				if method != resty.MethodGet {
 					executeBody = reqBody
