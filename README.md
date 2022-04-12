@@ -9,3 +9,4 @@
 - [httpclient](httpclient) - HTTP client containing raw `Client`, `BytesClient` and `ObjectClient`.
 - [mail](mail) - Simple mail client.
 - [notify](notify) - Notification interface, supports template, filter, tingtalk and mail.
+- [validator](validator) - Used for parameter validation.
