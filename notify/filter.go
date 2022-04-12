@@ -38,7 +38,6 @@ type (
 	DuplicateFilterParams struct {
 		DupInterval time.Duration // duplicate data notification interval
 		MaxRecords  int           // the max of records
-		Name        string
 	}
 
 	duplicateFilter struct {
