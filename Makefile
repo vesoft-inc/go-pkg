@@ -30,7 +30,6 @@ vet:
 
 imports: $(GOBIN)/goimports $(GOBIN)/impi
 	$(GOBIN)/impi --local github.com/vesoft-inc --scheme stdLocalThirdParty \
-	    --skip handler/*.go --skip model/*.go \
 	    -ignore-generated ./... \
 	    || exit 1
 
