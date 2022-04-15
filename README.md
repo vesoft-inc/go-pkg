@@ -10,4 +10,4 @@
 - [mail](mail) - Simple mail client.
 - [notify](notify) - Notification interface, supports template, filter, tingtalk and mail.
 - [validator](validator) - Used for parameter validation.
-- [middleware]middleware - Some generic middleware.
+- [response](response) - Standard response.
