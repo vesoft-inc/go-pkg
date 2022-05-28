@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/vesoft-inc/go-pkg/errorx"
 )
@@ -39,12 +40,46 @@ type (
 		// DebugInfo add debugInfo details in body when error.
 		DebugInfo bool
 	}
+
+	standardHandlerDataFieldAny struct {
+		data interface{}
+	}
 )
 
 func NewStandardHandler(params StandardHandlerParams) Handler {
 	return &standardHandler{
 		params: params,
 	}
+}
+
+// StandardHandlerDataFieldAny is to solve the problem that interface{} cannot be directly returned as the data field.
+// For examples:
+// 	var data interface{} = ...
+// 	return &XxxResp {
+//      Data: data,
+// 	}
+// The response body is:
+// 	{
+//      "code": 0,
+//      "message": "Success",
+//      "data": {
+//          "data": ...
+//      }
+//  }
+//
+// Once you use StandardHandlerDataFieldAny,
+// 	var data interface{} = ...
+// 	return &XxxResp {
+//      Data: StandardHandlerDataFieldAny(data),
+// 	}
+// The response body is:
+// 	{
+//      "code": 0,
+//      "message": "Success",
+//      "data": ...
+//  }
+func StandardHandlerDataFieldAny(data interface{}) interface{} {
+	return &standardHandlerDataFieldAny{data: data}
 }
 
 func (h *standardHandler) GetStatusBody(r *http.Request, data interface{}, err error) (httpStatus int, body interface{}) {
@@ -87,6 +122,7 @@ func (h *standardHandler) GetStatusBody(r *http.Request, data interface{}, err e
 			standardHandlerFieldCode:    0,
 			standardHandlerFieldMessage: "Success",
 		}
+		data = h.getData(data)
 		if data != nil {
 			resp[standardHandlerFieldData] = data
 		}
@@ -119,6 +155,32 @@ func (h *standardHandler) Handle(w http.ResponseWriter, r *http.Request, data in
 	} else if n < len(bs) {
 		h.errorf("write response failed, actual bytes: %d, written bytes: %d", len(bs), n)
 	}
+}
+
+func (*standardHandler) getData(data interface{}) interface{} {
+	if data == nil {
+		return nil
+	}
+	if v, ok := data.(*standardHandlerDataFieldAny); ok {
+		return v.data
+	}
+
+	reflectType := reflect.TypeOf(data)
+	reflectValue := reflect.Indirect(reflect.ValueOf(data))
+	if reflectType.Kind() == reflect.Ptr {
+		reflectType = reflectType.Elem()
+	}
+	if reflectType.Kind() != reflect.Struct || reflectType.NumField() != 1 {
+		return data
+	}
+	field := reflectValue.Field(0)
+	if !field.CanInterface() {
+		return data
+	}
+	if v, ok := field.Interface().(*standardHandlerDataFieldAny); ok {
+		return v.data
+	}
+	return data
 }
 
 func (h *standardHandler) errorf(format string, a ...interface{}) {
