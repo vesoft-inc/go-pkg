@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/vesoft-inc/go-pkg/errorx"
@@ -156,6 +157,103 @@ func TestStandardHandler(t *testing.T) {
 			"data":    "data",
 		},
 	}, {
+		name:           "data:yes:any0:nil",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           StandardHandlerDataFieldAny(nil),
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+		},
+	}, {
+		name:           "data:yes:any0:str",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           StandardHandlerDataFieldAny("data"),
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+			"data":    "data",
+		},
+	}, {
+		name:           "data:yes:any1:nil",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           struct{ D interface{} }{D: StandardHandlerDataFieldAny(nil)},
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+		},
+	}, {
+		name:           "data:yes:any1:str",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           struct{ D interface{} }{D: StandardHandlerDataFieldAny("data")},
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+			"data":    "data",
+		},
+	}, {
+		name:           "data:yes:any1:struct",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           struct{ D interface{} }{D: StandardHandlerDataFieldAny("data")},
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+			"data":    "data",
+		},
+	}, {
+		name:           "data:yes:any1:struct:pointer",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           &struct{ D interface{} }{D: StandardHandlerDataFieldAny("data")},
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+			"data":    "data",
+		},
+	}, {
+		name:           "data:yes:any1:other",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           struct{ D interface{} }{D: "data"},
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+			"data":    map[string]interface{}{"D": "data"},
+		},
+	}, {
+		name:           "data:yes:any1:struct:2",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           struct{ D, D2 interface{} }{D: StandardHandlerDataFieldAny("data")},
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+			"data":    map[string]interface{}{"D": map[string]interface{}{}, "D2": interface{}(nil)},
+		},
+	}, {
+		name:           "data:yes:any1:struct:unexported",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           struct{ d interface{} }{d: StandardHandlerDataFieldAny("data")},
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
+			"data":    map[string]interface{}{},
+		},
+	}, {
 		name:           "data:yes:error",
 		params:         StandardHandlerParams{},
 		r:              httptest.NewRequest("GET", "http://localhost", nil),
@@ -256,6 +354,22 @@ func TestStandardHandler(t *testing.T) {
 			h := NewStandardHandler(test.params)
 			{
 				httpStatus, body := h.GetStatusBody(test.r, test.data, test.err)
+				if body != nil {
+					if data := body.(map[string]interface{})["data"]; data != nil && !test.unsupportedData {
+						typeOfData := reflect.TypeOf(data)
+						if typeOfData.Kind() == reflect.Ptr {
+							typeOfData = typeOfData.Elem()
+						}
+						if typeOfData.Kind() == reflect.Struct {
+							bs, err := json.Marshal(data)
+							assert.NoError(t, err)
+							var m map[string]interface{}
+							err = json.Unmarshal(bs, &m)
+							assert.NoError(t, err)
+							body.(map[string]interface{})["data"] = m
+						}
+					}
+				}
 				checkFunc(test.expectedStatus, httpStatus, test.expectedBody, body)
 			}
 			{
