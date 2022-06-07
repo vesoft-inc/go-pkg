@@ -158,19 +158,15 @@ func (h *standardHandler) Handle(w http.ResponseWriter, r *http.Request, data in
 }
 
 func (*standardHandler) getData(data interface{}) interface{} {
-	if data == nil {
+	if isInterfaceNil(data) {
 		return nil
 	}
 	if v, ok := data.(*standardHandlerDataFieldAny); ok {
 		return v.data
 	}
 
-	reflectType := reflect.TypeOf(data)
 	reflectValue := reflect.Indirect(reflect.ValueOf(data))
-	if reflectType.Kind() == reflect.Ptr {
-		reflectType = reflectType.Elem()
-	}
-	if reflectType.Kind() != reflect.Struct || reflectType.NumField() != 1 {
+	if reflectValue.Kind() != reflect.Struct || reflectValue.NumField() != 1 {
 		return data
 	}
 	field := reflectValue.Field(0)
@@ -187,4 +183,15 @@ func (h *standardHandler) errorf(format string, a ...interface{}) {
 	if h.params.Errorf != nil {
 		h.params.Errorf(format, a...)
 	}
+}
+
+func isInterfaceNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	switch reflect.TypeOf(i).Kind() { // nolint:exhaustive
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	}
+	return false
 }

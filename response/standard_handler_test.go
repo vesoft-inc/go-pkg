@@ -50,6 +50,10 @@ func (rec *testRecorder) WriteHeader(statusCode int) {
 }
 
 func TestStandardHandler(t *testing.T) {
+	type testStruct struct {
+		F int
+	}
+	var nilStruct *testStruct
 	tests := []struct {
 		name            string
 		params          StandardHandlerParams
@@ -155,6 +159,16 @@ func TestStandardHandler(t *testing.T) {
 			"code":    0,
 			"message": "Success",
 			"data":    "data",
+		},
+	}, {
+		name:           "data:yes:nil:struct",
+		params:         StandardHandlerParams{},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		data:           nilStruct,
+		expectedStatus: 200,
+		expectedBody: map[string]interface{}{
+			"code":    0,
+			"message": "Success",
 		},
 	}, {
 		name:           "data:yes:any0:nil",
