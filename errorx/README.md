@@ -14,12 +14,15 @@ The `alias.go` files:
 ```golang
 package ecode
 
+// It's code template. DO NOT EDIT.
+
 import (
+	"net/http"
+
 	"github.com/vesoft-inc/go-pkg/errorx"
 )
 
-const (
-	// CodeCategory
+const ( // CodeCategory
 	CCBadRequest     = errorx.CCBadRequest     // 400
 	CCUnauthorized   = errorx.CCUnauthorized   // 401
 	CCForbidden      = errorx.CCForbidden      // 403
@@ -31,12 +34,12 @@ const (
 
 var (
 	// WithCode return error warps with codeError.
-	// c is the code. err is the real err. formatWithArgs is format string with args.
+	// c is the code. err is the real err. formatWithArgs is details with format string including args.
 	// For example:
 	//  WithCode(ErrBadRequest, nil)
 	//  WithCode(ErrBadRequest, err)
-	//  WithCode(ErrBadRequest, err, "message")
-	//  WithCode(ErrBadRequest, err, "message %s", "id")
+	//  WithCode(ErrBadRequest, err, "details")
+	//  WithCode(ErrBadRequest, err, "details %s", "id")
 	WithCode         = errorx.WithCode
 	AsCodeError      = errorx.AsCodeError
 	IsCodeError      = errorx.IsCodeError
@@ -63,33 +66,6 @@ type (
 	// 	     001 is the error specific code
 	ErrCode   = errorx.ErrCode
 	CodeError = errorx.CodeError
-)
-```
-
-The `codes.go` files:
-
-```golang
-package ecode
-
-import (
-	"net/http"
-)
-
-const (
-	// TODO: Please modify it to your own platform code.
-	PlatformCode = 0
-)
-
-// Define you error code here
-var (
-	ErrBadRequest                  = newErrCode(CCBadRequest, PlatformCode, 0, "ErrBadRequest")                  // 4000000
-	ErrParam                       = newErrCode(CCBadRequest, PlatformCode, 1, "ErrParam")                       // 4000001
-	ErrUnauthorized                = newErrCode(CCUnauthorized, PlatformCode, 0, "ErrUnauthorized")              // 4010000
-	ErrForbidden                   = newErrCode(CCForbidden, PlatformCode, 0, "ErrForbidden")                    // 4030000
-	ErrNotFound                    = newErrCode(CCNotFound, PlatformCode, 0, "ErrNotFound")                      // 4040000
-	ErrInternalServer              = newErrCode(CCInternalServer, PlatformCode, 0, "ErrInternalServer")          // 5000000
-	ErrNotImplemented              = newErrCode(CCNotImplemented, PlatformCode, 0, "ErrNotImplemented")          // 5010000
-	ErrUnknown                     = newErrCode(CCUnknown, PlatformCode, 0, "ErrUnknown")                        // 9000000
 )
 
 var statusCodeErrorMapping = map[int]*ErrCode{
@@ -163,4 +139,26 @@ func IsNotImplemented(err error) bool {
 func IsUnknown(err error) bool {
 	return IsCodeError(err, ErrUnknown)
 }
+```
+
+The `codes.go` files:
+
+```golang
+package ecode
+
+const (
+	PlatformCode = 0 // TODO: Please modify it to your own platform code.
+)
+
+// Define you error code here
+var (
+	ErrBadRequest     = newErrCode(CCBadRequest, PlatformCode, 0, "ErrBadRequest")         // 40000000
+	ErrParam          = newErrCode(CCBadRequest, PlatformCode, 1, "ErrParam")              // 40000001
+	ErrUnauthorized   = newErrCode(CCUnauthorized, PlatformCode, 0, "ErrUnauthorized")     // 40100000
+	ErrForbidden      = newErrCode(CCForbidden, PlatformCode, 0, "ErrForbidden")           // 40300000
+	ErrNotFound       = newErrCode(CCNotFound, PlatformCode, 0, "ErrNotFound")             // 40400000
+	ErrInternalServer = newErrCode(CCInternalServer, PlatformCode, 0, "ErrInternalServer") // 50000000
+	ErrNotImplemented = newErrCode(CCNotImplemented, PlatformCode, 0, "ErrNotImplemented") // 50100000
+	ErrUnknown        = newErrCode(CCUnknown, PlatformCode, 0, "ErrUnknown")               // 90000000
+)
 ```

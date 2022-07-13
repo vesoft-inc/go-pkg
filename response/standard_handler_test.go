@@ -117,7 +117,7 @@ func TestStandardHandler(t *testing.T) {
 		expectedBody: map[string]interface{}{
 			"code":      50000000,
 			"message":   "ErrInternalServer",
-			"debugInfo": "testError\n50000000: ErrInternalServer",
+			"debugInfo": "50000000(ErrInternalServer):testError\n",
 		},
 	}, {
 		name: "data:no:CheckBodyType:none",
