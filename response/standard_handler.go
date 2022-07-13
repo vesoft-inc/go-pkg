@@ -2,6 +2,7 @@ package response
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -12,13 +13,18 @@ import (
 const (
 	StandardHandlerBodyJson StandardHandlerBodyType = 0 // nolint:revive
 	StandardHandlerBodyNone StandardHandlerBodyType = 1
+
+	StandardHandlerDetailsNone      StandardHandlerDetailsType = 0
+	StandardHandlerDetailsNormal    StandardHandlerDetailsType = 1
+	StandardHandlerDetailsWithError StandardHandlerDetailsType = 2
+	StandardHandlerDetailsFull      StandardHandlerDetailsType = 3
 )
 
 const (
-	standardHandlerFieldCode      = "code"
-	standardHandlerFieldMessage   = "message"
-	standardHandlerFieldData      = "data"
-	standardHandlerFieldDebugInfo = "debugInfo"
+	standardHandlerFieldCode    = "code"
+	standardHandlerFieldMessage = "message"
+	standardHandlerFieldData    = "data"
+	standardHandlerFieldDetails = "details"
 )
 
 var _ Handler = (*standardHandler)(nil)
@@ -30,6 +36,8 @@ type (
 
 	StandardHandlerBodyType int
 
+	StandardHandlerDetailsType int
+
 	StandardHandlerParams struct {
 		// GetErrCode used to parse the error.
 		GetErrCode func(error) *errorx.ErrCode
@@ -37,8 +45,8 @@ type (
 		CheckBodyType func(r *http.Request) StandardHandlerBodyType
 		// Errorf write the error logs.
 		Errorf func(format string, a ...interface{})
-		// DebugInfo add debugInfo details in body when error.
-		DebugInfo bool
+		// DetailsType is the type for details field, default is StandardHandlerDetailsDisable.
+		DetailsType StandardHandlerDetailsType
 	}
 
 	standardHandlerDataFieldAny struct {
@@ -112,8 +120,8 @@ func (h *standardHandler) GetStatusBody(r *http.Request, data interface{}, err e
 				standardHandlerFieldCode:    e.GetCode(),
 				standardHandlerFieldMessage: e.GetMessage(),
 			}
-			if h.params.DebugInfo {
-				resp[standardHandlerFieldDebugInfo] = fmt.Sprintf("%+v", err)
+			if details := h.getDetails(e); details != "" {
+				resp[standardHandlerFieldDetails] = details
 			}
 			body = resp
 		}
@@ -183,6 +191,22 @@ func (h *standardHandler) errorf(format string, a ...interface{}) {
 	if h.params.Errorf != nil {
 		h.params.Errorf(format, a...)
 	}
+}
+
+func (h *standardHandler) getDetails(e errorx.CodeError) string {
+	switch h.params.DetailsType {
+	case StandardHandlerDetailsNone:
+	case StandardHandlerDetailsNormal:
+		return e.Error()
+	case StandardHandlerDetailsWithError:
+		if internalError := errors.Unwrap(e); internalError != nil {
+			return fmt.Sprintf("%s:%s", e.Error(), internalError.Error())
+		}
+		return e.Error()
+	case StandardHandlerDetailsFull:
+		return fmt.Sprintf("%+v", e)
+	}
+	return ""
 }
 
 func isInterfaceNil(i interface{}) bool {
