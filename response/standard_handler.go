@@ -62,12 +62,12 @@ func NewStandardHandler(params StandardHandlerParams) Handler {
 
 // StandardHandlerDataFieldAny is to solve the problem that interface{} cannot be directly returned as the data field.
 // For examples:
-// 	var data interface{} = ...
-// 	return &XxxResp {
+//  var data interface{} = ...
+//  return &XxxResp {
 //      Data: data,
-// 	}
+//  }
 // The response body is:
-// 	{
+//  {
 //      "code": 0,
 //      "message": "Success",
 //      "data": {
@@ -76,18 +76,25 @@ func NewStandardHandler(params StandardHandlerParams) Handler {
 //  }
 //
 // Once you use StandardHandlerDataFieldAny,
-// 	var data interface{} = ...
-// 	return &XxxResp {
+//  var data interface{} = ...
+//  return &XxxResp {
 //      Data: StandardHandlerDataFieldAny(data),
-// 	}
+//  }
 // The response body is:
-// 	{
+//  {
 //      "code": 0,
 //      "message": "Success",
 //      "data": ...
 //  }
 func StandardHandlerDataFieldAny(data interface{}) interface{} {
 	return &standardHandlerDataFieldAny{data: data}
+}
+
+func GetStandardHandlerDataFieldAnyData(data interface{}) (interface{}, bool) {
+	if v, ok := data.(*standardHandlerDataFieldAny); ok {
+		return v.data, true
+	}
+	return nil, false
 }
 
 func (h *standardHandler) GetStatusBody(r *http.Request, data interface{}, err error) (httpStatus int, body interface{}) {
@@ -169,8 +176,8 @@ func (*standardHandler) getData(data interface{}) interface{} {
 	if isInterfaceNil(data) {
 		return nil
 	}
-	if v, ok := data.(*standardHandlerDataFieldAny); ok {
-		return v.data
+	if v, ok := GetStandardHandlerDataFieldAnyData(data); ok {
+		return v
 	}
 
 	reflectValue := reflect.Indirect(reflect.ValueOf(data))
@@ -181,8 +188,8 @@ func (*standardHandler) getData(data interface{}) interface{} {
 	if !field.CanInterface() {
 		return data
 	}
-	if v, ok := field.Interface().(*standardHandlerDataFieldAny); ok {
-		return v.data
+	if v, ok := GetStandardHandlerDataFieldAnyData(field.Interface()); ok {
+		return v
 	}
 	return data
 }
