@@ -107,17 +107,58 @@ func TestStandardHandler(t *testing.T) {
 			"message": "testError",
 		},
 	}, {
-		name: "data:no:DebugInfo",
+		name: "data:no:details:normal",
 		params: StandardHandlerParams{
-			DebugInfo: true,
+			DetailsType: StandardHandlerDetailsNormal,
 		},
 		r:              httptest.NewRequest("GET", "http://localhost", nil),
 		err:            errors.New("testError"),
 		expectedStatus: 500,
 		expectedBody: map[string]interface{}{
-			"code":      50000000,
-			"message":   "ErrInternalServer",
-			"debugInfo": "50000000(ErrInternalServer):testError\n",
+			"code":    50000000,
+			"message": "ErrInternalServer",
+			"details": "50000000(ErrInternalServer)",
+		},
+	}, {
+		name: "data:no:details:withError",
+		params: StandardHandlerParams{
+			DetailsType: StandardHandlerDetailsWithError,
+		},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		err:            errors.New("testError"),
+		expectedStatus: 500,
+		expectedBody: map[string]interface{}{
+			"code":    50000000,
+			"message": "ErrInternalServer",
+			"details": "50000000(ErrInternalServer):testError",
+		},
+	}, {
+		name: "data:no:details:withError:noInternalError",
+		params: StandardHandlerParams{
+			DetailsType: StandardHandlerDetailsWithError,
+		},
+		r: httptest.NewRequest("GET", "http://localhost", nil),
+		err: errorx.WithCode(
+			errorx.NewErrCode(500, 0, 0, "ErrInternalServer"),
+			nil, "details %d", 10),
+		expectedStatus: 500,
+		expectedBody: map[string]interface{}{
+			"code":    50000000,
+			"message": "ErrInternalServer",
+			"details": "50000000(ErrInternalServer) details 10",
+		},
+	}, {
+		name: "data:no:details:full",
+		params: StandardHandlerParams{
+			DetailsType: StandardHandlerDetailsFull,
+		},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		err:            errors.New("testError"),
+		expectedStatus: 500,
+		expectedBody: map[string]interface{}{
+			"code":    50000000,
+			"message": "ErrInternalServer",
+			"details": "50000000(ErrInternalServer):testError\n",
 		},
 	}, {
 		name: "data:no:CheckBodyType:none",
@@ -326,8 +367,12 @@ func TestStandardHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			checkFunc := func(expectedStatus, httpStatus int, expectedBody, body interface{}) {
 				assert.Equal(t, expectedStatus, httpStatus)
-				if test.err != nil && test.params.DebugInfo {
-					assert.Contains(t, body.(map[string]interface{})["debugInfo"], expectedBody.(map[string]interface{})["debugInfo"])
+				if test.err != nil && test.params.DetailsType != StandardHandlerDetailsNone {
+					if test.params.DetailsType == StandardHandlerDetailsFull {
+						assert.Contains(t, body.(map[string]interface{})["details"], expectedBody.(map[string]interface{})["details"])
+					} else {
+						assert.Equal(t, body.(map[string]interface{})["details"], expectedBody.(map[string]interface{})["details"])
+					}
 					assert.Equal(t, map[string]interface{}{
 						"code":    expectedBody.(map[string]interface{})["code"],
 						"message": expectedBody.(map[string]interface{})["message"],
@@ -343,10 +388,10 @@ func TestStandardHandler(t *testing.T) {
 				var body interface{}
 				if len(bodyBytes) > 0 {
 					bodyStruct := struct {
-						Code      int
-						Message   string
-						Data      interface{}
-						DebugInfo string
+						Code    int
+						Message string
+						Data    interface{}
+						Details string
 					}{}
 					err := json.Unmarshal(bodyBytes, &bodyStruct)
 					assert.NoError(t, err)
@@ -357,8 +402,8 @@ func TestStandardHandler(t *testing.T) {
 					if bodyStruct.Data != nil {
 						cmpBody["data"] = bodyStruct.Data
 					}
-					if bodyStruct.DebugInfo != "" {
-						cmpBody["debugInfo"] = bodyStruct.DebugInfo
+					if bodyStruct.Details != "" {
+						cmpBody["details"] = bodyStruct.Details
 					}
 					body = cmpBody
 				}
