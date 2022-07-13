@@ -103,50 +103,52 @@ func TestWithCode(t *testing.T) {
 		code:           testErrBadRequest,
 		err:            nil,
 		args:           nil,
-		expectedErrStr: "40001000: testErrBadRequest",
+		expectedErrStr: "40001000(testErrBadRequest)",
 	}, {
 		name:           "with err",
 		code:           testErrBadRequest,
 		err:            errors.New("myError"),
 		args:           nil,
-		expectedErrStr: "40001000: testErrBadRequest",
+		expectedErrStr: "40001000(testErrBadRequest)",
 	}, {
-		name:           "with message",
+		name:           "with formatWithArgs no args",
 		code:           testErrBadRequest,
 		err:            nil,
-		args:           []interface{}{"myMessage"},
-		expectedErrStr: "myMessage: 40001000: testErrBadRequest",
+		args:           []interface{}{"myDetails"},
+		expectedErrStr: "40001000(testErrBadRequest) myDetails",
 	}, {
-		name:           "with messagef",
+		name:           "with formatWithArgs",
 		code:           testErrBadRequest,
 		err:            nil,
-		args:           []interface{}{"myMessage %d", 10},
-		expectedErrStr: "myMessage 10: 40001000: testErrBadRequest",
+		args:           []interface{}{"myDetails %d", 10},
+		expectedErrStr: "40001000(testErrBadRequest) myDetails 10",
 	}, {
-		name:           "with message not string",
+		name:           "with formatWithArgs not string",
 		code:           testErrBadRequest,
 		err:            nil,
 		args:           []interface{}{0},
-		expectedErrStr: "40001000: testErrBadRequest",
+		expectedErrStr: "40001000(testErrBadRequest)",
 	}}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := WithCode(test.code, test.err, test.args...)
 			assert.Equal(t, test.expectedErrStr, err.Error())
-			assert.Contains(t, fmt.Sprintf("%q", err), test.expectedErrStr)
+			assert.Equal(t, fmt.Sprintf("%v", err), test.expectedErrStr)
+			assert.Equal(t, fmt.Sprintf("%q", err), fmt.Sprintf("%q", test.expectedErrStr))
 			stackCount := strings.Count(fmt.Sprintf("%+v", err), "errorx.TestWithCode")
 			assert.Equal(t, 1, stackCount)
 		})
 	}
 }
 
-func Test_AsCodeError(t *testing.T) {
+func TestAsCodeError(t *testing.T) {
 	tests := []struct {
-		name     string
-		err      error
-		errCode  *ErrCode
-		expected bool
+		name            string
+		err             error
+		errCode         *ErrCode
+		expected        bool
+		expectedDetails string
 	}{{
 		name:     "nil err",
 		err:      nil,
@@ -158,20 +160,40 @@ func Test_AsCodeError(t *testing.T) {
 		errCode:  nil,
 		expected: false,
 	}, {
-		name:     "newCodeErrorInternal",
-		err:      newCodeErrorInternal(testErrBadRequest),
+		name:     "WithCode nil",
+		err:      WithCode(testErrBadRequest, nil),
 		errCode:  testErrBadRequest,
 		expected: true,
 	}, {
 		name:     "WithCode",
-		err:      WithCode(testErrNotFound, errors.New("otherError"), "myMessage %d", 10),
+		err:      WithCode(testErrNotFound, errors.New("otherError")),
 		errCode:  testErrNotFound,
 		expected: true,
 	}, {
-		name:     "WithCode twice",
-		err:      WithCode(testErrInternalServer, WithCode(testErrNotFound, errors.New("otherError"), "myMessage %d", 10), "myMessage %d", 10),
-		errCode:  testErrInternalServer,
+		name:     "WithCode formatWithArgs not string",
+		err:      WithCode(testErrNotFound, errors.New("otherError"), 0),
+		errCode:  testErrNotFound,
 		expected: true,
+	}, {
+		name:            "WithCode formatWithArgs no args",
+		err:             WithCode(testErrNotFound, errors.New("otherError"), "myDetails"),
+		errCode:         testErrNotFound,
+		expected:        true,
+		expectedDetails: "myDetails",
+	}, {
+		name:            "WithCode",
+		err:             WithCode(testErrNotFound, errors.New("otherError"), "myDetails %d", 10),
+		errCode:         testErrNotFound,
+		expected:        true,
+		expectedDetails: "myDetails 10",
+	}, {
+		name: "WithCode twice",
+		err: WithCode(testErrInternalServer,
+			WithCode(testErrNotFound, errors.New("otherError"), "myDetails %d", 10),
+			"myDetails %d", 11),
+		errCode:         testErrInternalServer,
+		expected:        true,
+		expectedDetails: "myDetails 11",
 	}}
 
 	for _, test := range tests {
@@ -186,6 +208,8 @@ func Test_AsCodeError(t *testing.T) {
 				assert.Equal(t, e.GetSpecificCode(), test.errCode.GetSpecificCode())
 				assert.Equal(t, e.GetMessage(), test.errCode.GetMessage())
 				assert.True(t, e.IsErrCode(test.errCode))
+				assert.Equal(t, test.expectedDetails, e.GetDetails())
+				assert.Contains(t, fmt.Sprintf("%+v", e), "errorx.TestAsCodeError")
 			}
 		})
 	}
@@ -208,35 +232,40 @@ func Test_IsCodeError(t *testing.T) {
 		errCode:  nil,
 		expected: false,
 	}, {
-		name:     "other error with code",
+		name:     "other error with error code",
 		err:      errors.New("otherError"),
 		errCode:  []*ErrCode{testErrBadRequest},
 		expected: false,
 	}, {
-		name:     "multi error code",
-		err:      newCodeErrorInternal(testErrBadRequest),
+		name:     "WithCode with multi error code",
+		err:      WithCode(testErrBadRequest, nil),
 		errCode:  []*ErrCode{testErrBadRequest, testErrNotFound},
 		expected: false,
 	}, {
-		name:     "newCodeErrorInternal",
-		err:      newCodeErrorInternal(testErrBadRequest),
+		name:     "WithCode",
+		err:      WithCode(testErrBadRequest, nil),
 		errCode:  nil,
 		expected: true,
 	}, {
-		name:     "newCodeErrorInternal with code",
-		err:      newCodeErrorInternal(testErrBadRequest),
+		name:     "WithCode with error code",
+		err:      WithCode(testErrBadRequest, nil),
 		errCode:  []*ErrCode{testErrBadRequest},
 		expected: true,
 	}, {
-		name:     "WithCode",
-		err:      WithCode(testErrNotFound, errors.New("otherError"), "myMessage %d", 10),
+		name:     "WithCode with error code",
+		err:      WithCode(testErrNotFound, errors.New("otherError"), "myDetails %d", 10),
 		errCode:  []*ErrCode{testErrNotFound},
 		expected: true,
 	}, {
-		name:     "WithCode twice",
-		err:      WithCode(testErrInternalServer, WithCode(testErrNotFound, errors.New("otherError"), "myMessage %d", 10), "myMessage %d", 10),
+		name:     "WithCode twice is first",
+		err:      WithCode(testErrInternalServer, WithCode(testErrNotFound, errors.New("otherError"), "myDetails %d", 10), "myDetails %d", 10),
 		errCode:  []*ErrCode{testErrInternalServer},
 		expected: true,
+	}, {
+		name:     "WithCode twice is second",
+		err:      WithCode(testErrInternalServer, WithCode(testErrNotFound, errors.New("otherError"), "myDetails %d", 10), "myDetails %d", 10),
+		errCode:  []*ErrCode{testErrNotFound},
+		expected: false,
 	}}
 
 	for _, test := range tests {

@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"sync"
 	_ "unsafe" // for go:linkname
 
 	"github.com/pkg/errors"
 )
 
-const (
-	// CodeCategory
+const ( // CodeCategory
 	CCBadRequest     = http.StatusBadRequest          // 400
 	CCUnauthorized   = http.StatusUnauthorized        // 401
 	CCForbidden      = http.StatusForbidden           // 403
@@ -53,6 +53,7 @@ type (
 		GetPlatformCode() int
 		GetSpecificCode() int
 		GetMessage() string
+		GetDetails() string
 		GetHTTPStatus() int
 		IsErrCode(c *ErrCode) bool
 	}
@@ -60,6 +61,8 @@ type (
 	codeError struct {
 		error
 		*ErrCode
+		*stack
+		details string
 	}
 
 	CodeCombiner interface {
@@ -68,9 +71,11 @@ type (
 	}
 
 	codeCombiner323 struct{}
+
+	stack []uintptr
 )
 
-// SetCodeCombiner changes the defalut CodeCombiner.
+// SetCodeCombiner changes the default CodeCombiner.
 func SetCodeCombiner(combiner CodeCombiner) {
 	codeCombinerMu.Lock()
 	codeCombiner = combiner
@@ -78,28 +83,29 @@ func SetCodeCombiner(combiner CodeCombiner) {
 }
 
 // WithCode return error warps with codeError.
-// c is the code. err is the real err. formatWithArgs is format string with args.
+// c is the code. err is the real err. formatWithArgs is details with format string including args.
 // For example:
 //  WithCode(ErrBadRequest, nil)
 //  WithCode(ErrBadRequest, err)
-//  WithCode(ErrBadRequest, err, "message")
-//  WithCode(ErrBadRequest, err, "message %s", "id")
+//  WithCode(ErrBadRequest, err, "details")
+//  WithCode(ErrBadRequest, err, "details %s", "id")
 func WithCode(c *ErrCode, err error, formatWithArgs ...interface{}) error {
-	ce := newCodeErrorInternal(c, err)
-	if len(formatWithArgs) == 0 {
-		return ce
+	ce := &codeError{
+		error:   err,
+		ErrCode: c,
 	}
 
-	format, ok := formatWithArgs[0].(string)
-	if !ok {
-		return ce
+	if !hasStack(err) {
+		ce.stack = callers()
 	}
 
-	if len(formatWithArgs) == 1 {
-		return errors.WithMessage(ce, format)
+	if len(formatWithArgs) > 0 {
+		if format, ok := formatWithArgs[0].(string); ok {
+			ce.details = fmt.Sprintf(format, formatWithArgs[1:]...)
+		}
 	}
 
-	return errors.WithMessagef(ce, format, formatWithArgs[1:]...)
+	return ce
 }
 
 func AsCodeError(err error) (CodeError, bool) {
@@ -146,22 +152,6 @@ func TakeCodePriority(fns ...func() *ErrCode) *ErrCode {
 	return nil
 }
 
-func newCodeErrorInternal(c *ErrCode, err ...error) error {
-	var e error
-	if len(err) > 0 {
-		e = err[0]
-	}
-	ce := &codeError{
-		error:   e,
-		ErrCode: c,
-	}
-
-	if hasStack(e) {
-		return ce
-	}
-	return errors.WithStack(ce)
-}
-
 func (c *ErrCode) GetErrCode() *ErrCode {
 	return c
 }
@@ -197,8 +187,15 @@ func (c *ErrCode) IsErrCode(ec *ErrCode) bool {
 	return c == ec
 }
 
+func (e *codeError) GetDetails() string {
+	return e.details
+}
+
 func (e *codeError) Error() string {
-	return fmt.Sprintf("%d: %s", e.GetCode(), e.GetMessage())
+	if details := e.GetDetails(); details != "" {
+		return fmt.Sprintf("%d(%s) %s", e.GetCode(), e.GetMessage(), details)
+	}
+	return fmt.Sprintf("%d(%s)", e.GetCode(), e.GetMessage())
 }
 
 func (e *codeError) Cause() error { return e.error }
@@ -209,9 +206,14 @@ func (e *codeError) Unwrap() error { return e.error }
 func (e *codeError) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
-		if s.Flag('+') && e.Cause() != nil {
-			_, _ = fmt.Fprintf(s, "%+v\n", e.Cause())
+		if s.Flag('+') {
 			_, _ = io.WriteString(s, e.Error())
+			if e.Cause() != nil {
+				_, _ = fmt.Fprintf(s, ":%+v", e.Cause())
+			}
+			if e.stack != nil {
+				e.stack.Format(s, verb)
+			}
 			return
 		}
 		fallthrough
@@ -251,4 +253,25 @@ func hasStack(err error) bool {
 	}
 
 	return false
+}
+
+func callers() *stack {
+	const depth = 32
+	var pcs [depth]uintptr
+	n := runtime.Callers(3, pcs[:])
+	var st stack = pcs[0:n]
+	return &st
+}
+
+func (s *stack) Format(st fmt.State, verb rune) {
+	switch verb { // nolint:gocritic,revive
+	case 'v':
+		switch { // nolint:gocritic,revive
+		case st.Flag('+'):
+			for _, pc := range *s {
+				f := errors.Frame(pc)
+				_, _ = fmt.Fprintf(st, "\n%+v", f)
+			}
+		}
+	}
 }
