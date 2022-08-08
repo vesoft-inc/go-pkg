@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -86,7 +85,7 @@ func TestReserveRequest(t *testing.T) {
 				}()
 
 				checkBody := func(readCloser io.ReadCloser) {
-					bodyBytes, err := ioutil.ReadAll(readCloser)
+					bodyBytes, err := io.ReadAll(readCloser)
 					assert.NoError(t, err)
 					if test.method == http.MethodPost {
 						assert.Equal(t, bodyString, string(bodyBytes))

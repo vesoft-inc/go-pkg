@@ -67,7 +67,7 @@ func NewWithDingTalks(configs ...DingTalkConfig) Notifier {
 	return NewWithStringNotifiers(stringNotifiers...)
 }
 
-func newDingTalkNotifier(config DingTalkConfig) StringNotifier { // nolint:gocritic
+func newDingTalkNotifier(config DingTalkConfig) StringNotifier { //nolint:gocritic
 	return &dingTalkNotifier{
 		client: httpclient.NewObjectClient(dingTalkRobotSendAddr, httpclient.WithQueryParam("access_token", config.AccessToken)),
 		config: config,

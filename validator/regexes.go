@@ -1,9 +1,9 @@
 package validator
 
-const (
+const ( //nolint:gocritic
 // add your regex string here
 )
 
-var (
+var ( //nolint:gocritic
 // add your regex here with MustCompile
 )

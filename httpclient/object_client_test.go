@@ -2,7 +2,7 @@ package httpclient
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -40,7 +40,7 @@ func TestObjectClient(t *testing.T) {
 					testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						ast.Equal(method, r.Method)
 						if r.Method != resty.MethodGet {
-							body, err := ioutil.ReadAll(r.Body)
+							body, err := io.ReadAll(r.Body)
 							ast.NoError(err)
 							ast.Equal(reqBody, body)
 						}
