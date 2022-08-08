@@ -48,32 +48,19 @@ tools: $(GOBIN)/goimports \
 	$(GOBIN)/mockgen
 
 $(GOBIN)/goimports:
-	$(call go-get-tool,$(GOBIN)/goimports,golang.org/x/tools/cmd/goimports)
+	go install golang.org/x/tools/cmd/goimports@v0.1.12
 
 $(GOBIN)/impi:
-	$(call go-get-tool,$(GOBIN)/impi,github.com/pavius/impi/cmd/impi)
+	go install github.com/pavius/impi/cmd/impi@v0.0.3
 
 $(GOBIN)/gofumpt:
-	$(call go-get-tool,$(GOBIN)/gofumpt,mvdan.cc/gofumpt)
+	go install mvdan.cc/gofumpt@v0.3.1
 
 $(GOBIN)/golangci-lint:
 	@[ -f $(GOBIN)/golangci-lint ] || { \
 	set -e ;\
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.42.0 ;\
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.48.0 ;\
 	}
 
 $(GOBIN)/mockgen:
-	$(call go-get-tool,$(GOBIN)/mockgen,github.com/golang/mock/mockgen@v1.6.0)
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-go get $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
+	go install github.com/golang/mock/mockgen@v1.6.0

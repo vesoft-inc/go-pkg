@@ -85,10 +85,11 @@ func SetCodeCombiner(combiner CodeCombiner) {
 // WithCode return error warps with codeError.
 // c is the code. err is the real err. formatWithArgs is details with format string including args.
 // For example:
-//  WithCode(ErrBadRequest, nil)
-//  WithCode(ErrBadRequest, err)
-//  WithCode(ErrBadRequest, err, "details")
-//  WithCode(ErrBadRequest, err, "details %s", "id")
+//
+//	WithCode(ErrBadRequest, nil)
+//	WithCode(ErrBadRequest, err)
+//	WithCode(ErrBadRequest, err, "details")
+//	WithCode(ErrBadRequest, err, "details %s", "id")
 func WithCode(c *ErrCode, err error, formatWithArgs ...interface{}) error {
 	ce := &codeError{
 		error:   err,
@@ -264,9 +265,9 @@ func callers() *stack {
 }
 
 func (s *stack) Format(st fmt.State, verb rune) {
-	switch verb { // nolint:gocritic,revive
+	switch verb { //nolint:gocritic,revive
 	case 'v':
-		switch { // nolint:gocritic,revive
+		switch { //nolint:gocritic,revive
 		case st.Flag('+'):
 			for _, pc := range *s {
 				f := errors.Frame(pc)

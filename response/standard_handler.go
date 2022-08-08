@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	StandardHandlerBodyJson StandardHandlerBodyType = 0 // nolint:revive
+	StandardHandlerBodyJson StandardHandlerBodyType = 0 //nolint:revive
 	StandardHandlerBodyNone StandardHandlerBodyType = 1
 
 	StandardHandlerDetailsNone      StandardHandlerDetailsType = 0
@@ -62,30 +62,36 @@ func NewStandardHandler(params StandardHandlerParams) Handler {
 
 // StandardHandlerDataFieldAny is to solve the problem that interface{} cannot be directly returned as the data field.
 // For examples:
-//  var data interface{} = ...
-//  return &XxxResp {
-//      Data: data,
-//  }
+//
+//	var data interface{} = ...
+//	return &XxxResp {
+//	    Data: data,
+//	}
+//
 // The response body is:
-//  {
-//      "code": 0,
-//      "message": "Success",
-//      "data": {
-//          "data": ...
-//      }
-//  }
+//
+//	{
+//	    "code": 0,
+//	    "message": "Success",
+//	    "data": {
+//	        "data": ...
+//	    }
+//	}
 //
 // Once you use StandardHandlerDataFieldAny,
-//  var data interface{} = ...
-//  return &XxxResp {
-//      Data: StandardHandlerDataFieldAny(data),
-//  }
+//
+//	var data interface{} = ...
+//	return &XxxResp {
+//	    Data: StandardHandlerDataFieldAny(data),
+//	}
+//
 // The response body is:
-//  {
-//      "code": 0,
-//      "message": "Success",
-//      "data": ...
-//  }
+//
+//	{
+//	    "code": 0,
+//	    "message": "Success",
+//	    "data": ...
+//	}
 func StandardHandlerDataFieldAny(data interface{}) interface{} {
 	return &standardHandlerDataFieldAny{data: data}
 }
@@ -220,7 +226,7 @@ func isInterfaceNil(i interface{}) bool {
 	if i == nil {
 		return true
 	}
-	switch reflect.TypeOf(i).Kind() { // nolint:exhaustive
+	switch reflect.TypeOf(i).Kind() { //nolint:exhaustive
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		return reflect.ValueOf(i).IsNil()
 	}

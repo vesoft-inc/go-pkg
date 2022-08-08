@@ -134,7 +134,7 @@ func TestWithCode(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := WithCode(test.code, test.err, test.args...)
 			assert.Equal(t, test.expectedErrStr, err.Error())
-			assert.Equal(t, fmt.Sprintf("%v", err), test.expectedErrStr)
+			assert.Equal(t, fmt.Sprintf("%v", err), test.expectedErrStr) //nolint:gocritic
 			assert.Equal(t, fmt.Sprintf("%q", err), fmt.Sprintf("%q", test.expectedErrStr))
 			stackCount := strings.Count(fmt.Sprintf("%+v", err), "errorx.TestWithCode")
 			assert.Equal(t, 1, stackCount)

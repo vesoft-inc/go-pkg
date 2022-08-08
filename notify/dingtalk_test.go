@@ -3,7 +3,7 @@ package notify
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -50,7 +50,7 @@ func TestDingTalkNotify(t *testing.T) {
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == resty.MethodPost {
-			body, err := ioutil.ReadAll(r.Body) //nolint:govet
+			body, err := io.ReadAll(r.Body) //nolint:govet
 			ast.NoError(err)
 			var requestBody dingTalkMessage
 			err = json.Unmarshal(body, &requestBody)
