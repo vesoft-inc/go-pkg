@@ -2,6 +2,7 @@ package response
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -182,6 +183,19 @@ func TestStandardHandler(t *testing.T) {
 		params: StandardHandlerParams{
 			CheckBodyType: func(r *http.Request) StandardHandlerBodyType { return StandardHandlerBodyJson },
 			Errorf:        func(format string, a ...interface{}) {},
+		},
+		r:              httptest.NewRequest("GET", "http://localhost", nil),
+		err:            errors.New("testError"),
+		expectedStatus: 500,
+		expectedBody: map[string]interface{}{
+			"code":    50000000,
+			"message": "ErrInternalServer",
+		},
+	}, {
+		name: "data:no:CheckBodyType:json:ContextErrorf",
+		params: StandardHandlerParams{
+			CheckBodyType: func(r *http.Request) StandardHandlerBodyType { return StandardHandlerBodyJson },
+			ContextErrorf: func(ctx context.Context, format string, a ...interface{}) {},
 		},
 		r:              httptest.NewRequest("GET", "http://localhost", nil),
 		err:            errors.New("testError"),
