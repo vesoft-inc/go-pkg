@@ -1,6 +1,7 @@
 package response
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +45,10 @@ type (
 		// CheckBodyType checks the type of body, default is StandardHandlerBodyJson.
 		CheckBodyType func(r *http.Request) StandardHandlerBodyType
 		// Errorf write the error logs.
+		// Deprecated: Use ContextErrorf instead.
 		Errorf func(format string, a ...interface{})
+		// ContextErrorf write the error logs.
+		ContextErrorf func(ctx context.Context, format string, a ...interface{})
 		// DetailsType is the type for details field, default is StandardHandlerDetailsDisable.
 		DetailsType StandardHandlerDetailsType
 	}
@@ -126,7 +130,18 @@ func (h *standardHandler) GetStatusBody(r *http.Request, data interface{}, err e
 			}), err)
 			e, _ = errorx.AsCodeError(err)
 		}
+
 		httpStatus = e.GetHTTPStatus()
+		
+		if httpStatus >= http.StatusBadRequest {
+			switch httpStatus {
+			case http.StatusUnauthorized:
+			case http.StatusForbidden:
+			case http.StatusNotFound:
+			default:
+				h.errorf(r, "request failed %+v", err)
+			}
+		}
 
 		if bodyType != StandardHandlerBodyNone {
 			resp := map[string]interface{}{
@@ -162,7 +177,7 @@ func (h *standardHandler) Handle(w http.ResponseWriter, r *http.Request, data in
 
 	bs, err := json.Marshal(body)
 	if err != nil {
-		h.errorf("write response json.Marshal failed, error: %s", err)
+		h.errorf(r, "write response json.Marshal failed, error: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -171,10 +186,10 @@ func (h *standardHandler) Handle(w http.ResponseWriter, r *http.Request, data in
 	w.WriteHeader(httpStatus)
 	if n, err := w.Write(bs); err != nil {
 		if err != http.ErrHandlerTimeout {
-			h.errorf("write response failed, error: %s", err)
+			h.errorf(r, "write response failed, error: %s", err)
 		}
 	} else if n < len(bs) {
-		h.errorf("write response failed, actual bytes: %d, written bytes: %d", len(bs), n)
+		h.errorf(r, "write response failed, actual bytes: %d, written bytes: %d", len(bs), n)
 	}
 }
 
@@ -200,9 +215,19 @@ func (*standardHandler) getData(data interface{}) interface{} {
 	return data
 }
 
-func (h *standardHandler) errorf(format string, a ...interface{}) {
-	if h.params.Errorf != nil {
-		h.params.Errorf(format, a...)
+func (h *standardHandler) errorf(r *http.Request, format string, a ...interface{}) {
+	var requestInfo string
+	if r != nil && r.URL != nil {
+		requestInfo = fmt.Sprintf("[%s] ", r.URL.String())
+	}
+	if h.params.ContextErrorf != nil {
+		ctx := context.Background()
+		if r != nil {
+			ctx = r.Context()
+		}
+		h.params.ContextErrorf(ctx, requestInfo+format, a...)
+	} else if h.params.Errorf != nil {
+		h.params.Errorf(requestInfo+format, a...)
 	}
 }
 
