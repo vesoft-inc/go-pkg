@@ -1,6 +1,7 @@
 package httpclient
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,6 +51,67 @@ func TestNewClient(t *testing.T) {
 			assert.True(t, ok)
 			assert.Equal(t, test.expected, cli.Addr)
 			assert.Equal(t, resty.New().SetBaseURL(test.expected).HostURL, cli.client.HostURL)
+		})
+	}
+}
+
+func TestWithNewClientHook(t *testing.T) {
+	tests := []struct {
+		name      string
+		updateFns []func(*resty.Client)
+		checkFn   func(t *testing.T, c *resty.Client)
+	}{{
+		name: "set 1 field",
+		updateFns: []func(*resty.Client){
+			func(c *resty.Client) {
+				c.SetAuthScheme("AuthScheme")
+			},
+		},
+		checkFn: func(t *testing.T, c *resty.Client) {
+			assert.Equal(t, "AuthScheme", c.AuthScheme)
+		},
+	}, {
+		name: "set 2 field",
+		updateFns: []func(*resty.Client){
+			func(c *resty.Client) {
+				c.SetAuthScheme("AuthScheme")
+			}, func(c *resty.Client) {
+				c.SetAuthToken("token")
+			},
+		},
+		checkFn: func(t *testing.T, c *resty.Client) {
+			assert.Equal(t, "AuthScheme", c.AuthScheme)
+			assert.Equal(t, "token", c.Token)
+		},
+	}, {
+		name: "set 2 field with rewrite",
+		updateFns: []func(*resty.Client){
+			func(c *resty.Client) {
+				c.SetAuthScheme("Scheme")
+				c.SetAuthToken("token")
+			}, func(c *resty.Client) {
+				c.SetAuthScheme("AuthScheme")
+			},
+		},
+		checkFn: func(t *testing.T, c *resty.Client) {
+			assert.Equal(t, "AuthScheme", c.AuthScheme)
+			assert.Equal(t, "token", c.Token)
+		},
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var opts []RequestOption
+			for _, fn := range test.updateFns {
+				opts = append(opts, WithNewClientHook(fn))
+			}
+
+			o := newRequestOptions(opts...)
+			c := resty.New()
+			if o.newClientHook != nil {
+				o.newClientHook(c)
+			}
+			test.checkFn(t, c)
 		})
 	}
 }
@@ -105,10 +167,7 @@ func TestWithBeforeRequestHook(t *testing.T) {
 				opts = append(opts, WithBeforeRequestHook(fn))
 			}
 
-			o := &requestOptions{}
-			for _, opt := range opts {
-				opt(o)
-			}
+			o := newRequestOptions(opts...)
 			r := new(resty.Request)
 			if o.beforeRequestHook != nil {
 				o.beforeRequestHook(r)
@@ -152,10 +211,7 @@ func TestWithBeforeRequestHookSerial(t *testing.T) {
 				opts = append(opts, WithBeforeRequestHook(genOptionFn(n)))
 			}
 
-			o := &requestOptions{}
-			for _, opt := range opts {
-				opt(o)
-			}
+			o := newRequestOptions(opts...)
 			if o.beforeRequestHook != nil {
 				o.beforeRequestHook(nil)
 			}
@@ -195,10 +251,7 @@ func TestWithBody(t *testing.T) {
 				opts = append(opts, WithBody(body))
 			}
 
-			o := &requestOptions{}
-			for _, opt := range opts {
-				opt(o)
-			}
+			o := newRequestOptions(opts...)
 			r := new(resty.Request)
 			if o.beforeRequestHook != nil {
 				o.beforeRequestHook(r)
@@ -266,6 +319,9 @@ func TestClient(t *testing.T) {
 				}
 
 				c := NewClient(testServer.URL,
+					WithTLSClientConfig(&tls.Config{
+						MinVersion: tls.VersionTLS13,
+					}),
 					WithQueryParam("q0", "qv0"),
 					WithQueryParams(map[string]string{
 						"q1": "qv1",

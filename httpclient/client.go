@@ -1,6 +1,7 @@
 package httpclient
 
 import (
+	"crypto/tls"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
@@ -21,11 +22,12 @@ type (
 	defaultClient struct {
 		Addr        string
 		client      *resty.Client
-		initOptions []RequestOption
+		initOptions *requestOptions
 	}
 
 	RequestOption  func(*requestOptions)
 	requestOptions struct {
+		newClientHook     func(*resty.Client)
 		beforeRequestHook func(*resty.Request)
 		afterRequestHook  func(*resty.Request, *resty.Response, error)
 	}
@@ -35,10 +37,26 @@ func NewClient(addr string, opts ...RequestOption) Client {
 	if addr != "" && !strings.HasPrefix(addr, "http") {
 		addr = "http://" + addr
 	}
+
+	o := newRequestOptions(opts...)
+
+	rawClient := resty.New().SetBaseURL(addr)
+	if o.newClientHook != nil {
+		o.newClientHook(rawClient)
+	}
+
 	return &defaultClient{
 		Addr:        addr,
-		client:      resty.New().SetBaseURL(addr),
-		initOptions: opts,
+		client:      rawClient,
+		initOptions: o,
+	}
+}
+
+func WithTLSClientConfig(config *tls.Config) RequestOption {
+	return func(o *requestOptions) {
+		o.linkNewClientHook(func(c *resty.Client) {
+			c.SetTLSClientConfig(config)
+		})
 	}
 }
 
@@ -90,6 +108,12 @@ func WithAuthToken(token string) RequestOption {
 	}
 }
 
+func WithNewClientHook(fn func(*resty.Client)) RequestOption {
+	return func(o *requestOptions) {
+		o.linkNewClientHook(fn)
+	}
+}
+
 func WithBeforeRequestHook(fn func(*resty.Request)) RequestOption {
 	return func(o *requestOptions) {
 		o.linkBeforeRequestHook(fn)
@@ -130,11 +154,7 @@ func (c *defaultClient) Execute(method, urlPath string, body interface{}, opts .
 }
 
 func (c *defaultClient) doRequest(method, urlPath string, opts ...RequestOption) (*resty.Response, error) {
-	o := defaultRequestOptions()
-
-	for _, opt := range append(c.initOptions, opts...) {
-		opt(o)
-	}
+	o := c.initOptions.WithOptions(opts...)
 
 	r := c.client.R()
 	if o.beforeRequestHook != nil {
@@ -146,6 +166,22 @@ func (c *defaultClient) doRequest(method, urlPath string, opts ...RequestOption)
 		o.afterRequestHook(r, resp, err)
 	}
 	return resp, err
+}
+
+func newRequestOptions(opts ...RequestOption) *requestOptions {
+	return defaultRequestOptions().WithOptions(opts...)
+}
+
+func (o *requestOptions) linkNewClientHook(fn func(*resty.Client)) {
+	if o.newClientHook == nil {
+		o.newClientHook = fn
+		return
+	}
+	preHook := o.newClientHook
+	o.newClientHook = func(c *resty.Client) {
+		preHook(c)
+		fn(c)
+	}
 }
 
 func (o *requestOptions) linkBeforeRequestHook(fn func(*resty.Request)) {
@@ -170,6 +206,18 @@ func (o *requestOptions) linkAfterRequestHook(fn func(*resty.Request, *resty.Res
 		preHook(r, resp, err)
 		fn(r, resp, err)
 	}
+}
+
+func (o *requestOptions) WithOptions(opts ...RequestOption) *requestOptions {
+	if len(opts) == 0 {
+		return o
+	}
+
+	cpy := *o
+	for _, opt := range opts {
+		opt(&cpy)
+	}
+	return &cpy
 }
 
 func defaultRequestOptions() *requestOptions {
