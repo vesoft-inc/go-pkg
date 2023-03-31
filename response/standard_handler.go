@@ -132,7 +132,7 @@ func (h *standardHandler) GetStatusBody(r *http.Request, data interface{}, err e
 		}
 
 		httpStatus = e.GetHTTPStatus()
-		
+
 		if httpStatus >= http.StatusBadRequest {
 			switch httpStatus {
 			case http.StatusUnauthorized:
