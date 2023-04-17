@@ -21,14 +21,15 @@ var (
 )
 
 type (
-	// Filter is to filter whether a notify should to be sent.
+	// Filter is to filter whether notify should to be sent.
 	Filter interface {
-		// IfNotify's arguments is the arguments other than the first one in Notifier.Notify.
-		IfNotify(interface{}) bool
+		// IfNotify check whether notify should to be sent.
+		// The arguments are the arguments other than the first one in Notifier.Notify.
+		IfNotify(interface{}) (fnSubmit func(), needNotify bool)
 	}
 
 	// FilterFunc is an adapter to allow the use of ordinary functions as Filter.
-	FilterFunc func(interface{}) bool
+	FilterFunc func(data interface{}) (fnSubmit func(), needNotify bool)
 
 	defaultFilterNotifier struct {
 		filter   Filter
@@ -75,13 +76,30 @@ func newDuplicateFilter(params DuplicateFilterParams) Filter {
 }
 
 func (n *defaultFilterNotifier) Notify(ctx context.Context, data interface{}) error {
-	if n.filter != nil && !n.filter.IfNotify(data) {
+	var (
+		fnSubmit   func()
+		needNotify = true
+	)
+	if n.filter != nil {
+		fnSubmit, needNotify = n.filter.IfNotify(data)
+	}
+
+	if !needNotify {
 		return nil
 	}
-	return n.notifier.Notify(ctx, data)
+	if err := n.notifier.Notify(ctx, data); err != nil {
+		return err
+	}
+
+	// submit only if successfully
+	if fnSubmit != nil {
+		fnSubmit()
+	}
+
+	return nil
 }
 
-func (n *duplicateFilter) IfNotify(data interface{}) bool {
+func (n *duplicateFilter) IfNotify(data interface{}) (fnSubmit func(), needNotify bool) {
 	hashFn := func(values ...interface{}) string {
 		h := crypto.MD5.New()
 		for _, v := range values {
@@ -98,16 +116,16 @@ func (n *duplicateFilter) IfNotify(data interface{}) bool {
 	n.mu.RUnlock()
 
 	if ok && n.isInCoolPeriod(lastTime) {
-		return false
+		return nil, false
 	}
-
-	n.mu.Lock()
-	n.lastTimeMap[hash] = time.Now()
-	n.mu.Unlock()
 
 	n.cleanLastTimeMapIfNecessary()
 
-	return true
+	return func() {
+		n.mu.Lock()
+		n.lastTimeMap[hash] = time.Now()
+		n.mu.Unlock()
+	}, true
 }
 
 func (n *duplicateFilter) cleanLastTimeMapIfNecessary() {
@@ -135,6 +153,9 @@ func (n *duplicateFilter) isInCoolPeriod(lastTime time.Time) bool {
 	return time.Since(lastTime) <= n.params.DupInterval
 }
 
-func (f FilterFunc) IfNotify(data interface{}) bool {
-	return f != nil && f(data)
+func (f FilterFunc) IfNotify(data interface{}) (fnSubmit func(), needNotify bool) {
+	if f == nil { // default to notify
+		return func() {}, true
+	}
+	return f(data)
 }
