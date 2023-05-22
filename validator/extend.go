@@ -1,9 +1,5 @@
 package validator
 
-import (
-	govalidator "github.com/go-playground/validator/v10"
-)
-
-var extendValidators = map[string]govalidator.Func{
+var extendValidators = map[string]Func{
 	// add your extend extend validators
 }

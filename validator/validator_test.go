@@ -9,6 +9,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestRegisterValidation(t *testing.T) {
+	var (
+		err error
+		ast = assert.New(t)
+	)
+
+	_ = RegisterValidation("streq", func(fl FieldLevel) bool {
+		field := fl.Field()
+		param := fl.Param()
+		if field.Kind() == reflect.String {
+			return field.String() == param
+		}
+		return false
+	})
+
+	type testStruct struct {
+		Data string `validate:"streq=aaa"`
+	}
+	err = Struct(testStruct{})
+	if errs, ok := err.(govalidator.ValidationErrors); ast.True(ok) {
+		ast.Len(errs, 1)
+	}
+	err = Struct(testStruct{Data: "aa"})
+	if errs, ok := err.(govalidator.ValidationErrors); ast.True(ok) {
+		ast.Len(errs, 1)
+	}
+	err = Struct(testStruct{Data: "aaa"})
+	ast.NoError(err)
+}
+
 func TestStruct(t *testing.T) {
 	var (
 		err error
@@ -56,8 +86,8 @@ func TestVar(t *testing.T) {
 }
 
 func TestExtendValidators(t *testing.T) {
-	stubs := gostub.Stub(&extendValidators, map[string]govalidator.Func{
-		"streq": func(fl govalidator.FieldLevel) bool {
+	stubs := gostub.Stub(&extendValidators, map[string]Func{
+		"streq": func(fl FieldLevel) bool {
 			field := fl.Field()
 			param := fl.Param()
 			if field.Kind() == reflect.String {

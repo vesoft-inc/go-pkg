@@ -13,6 +13,7 @@ var (
 
 type (
 	Validator interface {
+		RegisterValidation(tag string, fn Func, callValidationEvenIfNull ...bool) error
 		Struct(s interface{}) error
 		Var(field interface{}, tag string) error
 	}
@@ -22,18 +23,27 @@ type (
 	}
 
 	// alias
+	FieldLevel             = govalidator.FieldLevel
+	Func                   = func(fl FieldLevel) bool
 	InvalidValidationError = govalidator.InvalidValidationError
 	ValidationErrors       = govalidator.ValidationErrors
 )
 
 func New() Validator {
-	validate := govalidator.New()
+	v := &defaultValidator{
+		Validate: govalidator.New(),
+	}
+
 	for k, val := range extendValidators {
-		_ = validate.RegisterValidation(k, val)
+		_ = v.RegisterValidation(k, val)
 	}
-	return &defaultValidator{
-		Validate: validate,
-	}
+
+	return v
+}
+
+func RegisterValidation(tag string, fn Func, callValidationEvenIfNull ...bool) error {
+	initGValidator()
+	return gValidator.RegisterValidation(tag, fn, callValidationEvenIfNull...)
 }
 
 func Struct(s interface{}) error {
@@ -44,6 +54,10 @@ func Struct(s interface{}) error {
 func Var(field interface{}, tag string) error {
 	initGValidator()
 	return gValidator.Var(field, tag)
+}
+
+func (v *defaultValidator) RegisterValidation(tag string, fn Func, callValidationEvenIfNull ...bool) error {
+	return v.Validate.RegisterValidation(tag, fn, callValidationEvenIfNull...)
 }
 
 func (v *defaultValidator) Struct(s interface{}) error {
