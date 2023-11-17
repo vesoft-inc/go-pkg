@@ -5,6 +5,7 @@
 
 # Go Common Packages
 
+- [dotenv](dotenv) - Loads env vars from a .env file or custom files.
 - [errorx](errorx) - Error extension with code and message.
 - [httpclient](httpclient) - HTTP client containing raw `Client`, `BytesClient` and `ObjectClient`.
 - [mail](mail) - Simple mail client.
