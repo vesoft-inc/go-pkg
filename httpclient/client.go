@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"crypto/tls"
+	"net/http"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
@@ -56,6 +57,14 @@ func WithTLSClientConfig(config *tls.Config) RequestOption {
 	return func(o *requestOptions) {
 		o.linkNewClientHook(func(c *resty.Client) {
 			c.SetTLSClientConfig(config)
+		})
+	}
+}
+
+func WithTransport(transport http.RoundTripper) RequestOption {
+	return func(o *requestOptions) {
+		o.linkNewClientHook(func(c *resty.Client) {
+			c.SetTransport(transport)
 		})
 	}
 }
